@@ -1,0 +1,625 @@
+#+STARTUP: overview
+
+Emacs initialization as org file.
+
+This file is org-babel-load-file'd by file:init.el
+
+To try it out, use
+
+#+BEGIN_SRC sh
+#emacs -q -l init.el
+#+END_SRC
+
+* set exec-path to PATH
+
+see https://www.emacswiki.org/emacs/ExecPath, needed on MacOS
+
+#+BEGIN_SRC emacs-lisp
+(defun set-exec-path-from-shell-PATH ()
+  "Set up Emacs' `exec-path' and PATH environment variable to match
+that used by the user's shell.
+
+This is particularly useful under Mac OS X and macOS, where GUI
+apps are not started from a shell."
+  (interactive)
+  (let ((path-from-shell (replace-regexp-in-string
+			  "[ \t\n]*$" "" (shell-command-to-string
+					  "bash --login -c 'echo $PATH'"
+						    ))))
+    (setenv "PATH" path-from-shell)
+    (setq exec-path (split-string path-from-shell path-separator))))
+
+(set-exec-path-from-shell-PATH)
+#+END_SRC
+
+#+RESULTS:
+| /Users/florian/.sdkman/candidates/java/current/bin | /opt/homebrew/bin | /Library/TeX/texbin/ | /Applications/Julia-1.8.app/Contents/Resources/julia/bin | /opt/software/nextflow | /Users/florian/opt/anaconda3/bin | /Users/florian/opt/anaconda3/condabin | /usr/local/bin | /usr/bin | /bin | /usr/sbin | /sbin | /Library/TeX/texbin | /opt/homebrew/bin | /opt/homebrew/sbin |
+
+
+* Interface
+
+Interface tweaks 
+
+#+BEGIN_SRC emacs-lisp
+  (setq inhibit-startup-message t
+	initial-scratch-message nil)
+
+  (scroll-bar-mode -1)
+  (tool-bar-mode -1)
+  (menu-bar-mode 1)
+
+  (line-number-mode t)
+  (column-number-mode t)
+
+  (defalias 'yes-or-no-p 'y-or-n-p)
+
+  ;; make xdg-open work, to open files from within emacs
+  ;this messes up ipython
+  ;(setq process-connection-type nil)
+
+  ;; try fixing slow scrolling
+  ;(setq-default bidi-display-reordering  nil)
+
+  ;(setq-default indent-tabs-mode nil)
+  (put 'narrow-to-region 'disabled nil)
+
+
+
+
+#+END_SRC
+
+* Themes
+** Doom
+  
+  #+BEGIN_SRC emacs-lisp
+    (use-package doom-themes
+      :ensure t
+      :config
+      (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
+	    doom-themes-enable-italic t) ; if nil, italics is universally disabled
+      (load-theme 'doom-solarized-light t)
+					    ;(load-theme 'doom-one t)
+      (doom-themes-org-config))
+
+    (use-package all-the-icons ; need to run M-x all-the-icons-install-fonts
+      :ensure t)
+
+    (use-package doom-modeline
+      :ensure t
+      :init (doom-modeline-mode 1)
+      :custom (doom-modeline-height 15))
+
+ #+END_SRC
+
+** Solarized                                                       :DISABLED: 
+
+ #+BEGIN_SRC emacs-lisp
+   (use-package solarized-theme
+     :disabled
+     :ensure t
+     :init (load-theme 'solarized-light t))
+ #+END_SRC
+      
+* Minor modes
+** window-numbering
+
+ #+BEGIN_SRC emacs-lisp
+   (use-package window-numbering
+    :ensure t
+    :init (window-numbering-mode t))
+ #+END_SRC
+     
+** paren
+
+ #+BEGIN_SRC emacs-lisp
+   (use-package paren
+      :ensure t
+      :config
+      (show-paren-mode t))
+ #+END_SRC
+
+** whick-key
+
+ Show possible completions when typing control sequences
+ (after some delay)
+
+ #+BEGIN_SRC emacs-lisp
+ (use-package which-key
+     :ensure t
+     :config
+     (which-key-mode))
+ #+END_SRC
+
+* company-mode
+
+company is an in-buffer code completion framework
+
+Use C-; to force completion
+
+Do not enable global company mode, as it causes problems with jupyter-julia
+
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+      :ensure t
+      :init
+      (global-company-mode nil)
+      (setq company-global-modes '(not julia-mode jupyter-repl-mode))
+      :bind ("C-;" . company-complete-common)
+      )
+  
+  (use-package company-quickhelp
+    :ensure t
+    :hook (company-mode . company-quickhelp-mode))
+  
+  
+  
+#+END_SRC
+
+
+See https://sixty-north.com/blog/writing-the-simplest-emacs-company-mode-backend.html
+on how to write a company backend
+
+* ivy and counsel
+
+ivy is a narrowing-completion framework (used, e.g. in `C-x b`,  ivy-switch-buffer)
+counsel uses ivy for better M-x, C-x f, etc.
+swiper uses ivy for better incremental search, C-s
+
+When we do not want completion, use C-M-j to select current input
+(i.e. want to create file bar when file bar2 exists)
+
+
+#+BEGIN_SRC emacs-lisp
+    (use-package ivy
+      :ensure t
+      :init (ivy-mode 1)
+      :config
+      (setq ivy-use-virtual-buffers t
+	    ivy-count-format "%d/%d ")
+      (setq ivy-re-builders-alist
+	  '((t . ivy--regex-plus)
+	    (org-roam-node-find . ivy--regex-ignore-order))))
+  
+    (use-package counsel
+      :ensure t
+      :bind*
+      (("M-x"         . counsel-M-x)
+       ("C-x C-f"     . counsel-find-file)
+       ))
+  
+    (use-package swiper
+      :ensure t
+      :bind
+      (("C-s" . swiper)))
+  
+  
+#+END_SRC
+
+* ivy-rich [DISABLED]
+
+show more information for completion candidates
+
+uncomment for now, as C-x b is very slow to scroll
+
+but see https://github.com/Yevgnen/ivy-rich/issues/87 for fix
+(ErkiDerLoony)
+
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package all-the-icons-ivy-rich
+  ;;   :ensure t
+  ;;   :init (all-the-icons-ivy-rich-mode 1))
+  
+  ;; (use-package ivy-rich
+  ;;   :ensure t
+  ;;   :init (ivy-rich-mode 1))
+  
+#+END_SRC
+
+* yasnippet
+
+#+BEGIN_SRC emacs-lisp
+  (use-package yasnippet
+    :ensure t
+    :init
+    (yas-global-mode 1))
+#+END_SRC
+
+* pdf-tools
+
+better alternative to DocView 
+
+used for org-noter
+
+#+BEGIN_SRC emacs-lisp
+  (use-package pdf-tools
+    :ensure t
+    :config
+    (setq-default pdf-view-display-size 'fit-page)
+    (pdf-tools-install :no-query))
+
+#+END_SRC
+
+
+* ess-mode
+
+#+BEGIN_SRC emacs-lisp
+  (use-package ess
+    :ensure t
+    :init
+    (require 'ess-site)
+    :config
+    (setq indent-tabs-mode nil))
+#+END_SRC
+
+
+* jupyter
+
+C-c C-c  evaluate expression
+Results shown as overlays
+
+C-c C-o  remove all overlays
+S-RET    un/fold multiline overlays
+
+
+C-c C-c `jupyter-eval-line-or-region'
+C-c C-l `jupyter-eval-file'
+M-i     `jupyter-inspect-at-point'
+C-c C-r `jupyter-repl-restart-kernel'
+C-c C-i `jupyter-repl-interrupt-kernel'
+C-c C-z `jupyter-repl-pop-to-buffer'
+
+  
+#+BEGIN_SRC emacs-lisp
+  (use-package julia-mode
+    :ensure t)
+  
+  (use-package jupyter
+    :ensure t
+    :config
+    (require 'jupyter-python)
+    (require 'jupyter-julia)
+    (require 'jupyter-R)
+    (setq jupyter-eval-use-overlays t))
+#+END_SRC
+
+* org-mode
+** org
+
+#+BEGIN_SRC emacs-lisp
+  (use-package org
+      :ensure t
+      :config
+      (setq org-hide-emphasis-markers t)
+      ; show inline images
+      (org-display-inline-images t t)
+      (setq org-startup-with-inline-images "inlineimages")
+      ; press RET to follow links
+      (setq org-return-follows-link t)
+      (setq org-support-shift-select t)
+      ; use syntax highlighting in org-file code blocks
+      (setq org-src-fontify-natively t)
+      (setq org-element-use-cache nil)
+      (setq org-latex-to-pdf-process (list "latexmk -pdf %f"))
+      (setq org-agenda-files (quote ("~/Notes")))
+  
+  
+  
+      (org-babel-do-load-languages
+       'org-babel-load-languages
+       '((python . t)
+	 (sqlite . t)
+	 (R . t)
+	 (shell . t)
+	 (dot . t)
+	 (julia . t)
+	 (jupyter . t)))
+  
+      ;; when ESS is used, the julia REPL is started with jupyter-repl-lang-mode as ess-julia-mode
+      ;; then we might need to set
+      ;;(push '("jupyter-julia" . ess-julia) org-src-lang-modes)
+  
+      (setq org-babel-sh-command "bash")
+      ; don't ask for permission when executing code blocks
+      (setq org-confirm-babel-evaluate nil)
+      (global-set-key (kbd "C-c a") 'org-agenda)
+      ;;file to save todo items
+      (setq org-agenda-files (quote ("~/Notes")))
+      (define-key global-map (kbd "C-c c") 'org-capture)
+      (setq org-capture-templates
+	    '(("t" "todo" entry (file+headline "~/Notes/TODO.org" "Tasks")
+	       "* TODO [#A] %?")
+	       ("c" "capture" entry (file "~/Notes/Capture.org")
+	       "* %?"
+	       :empty-lines 1)
+	      ("j" "journal" entry (file+datetree "~/Notes/Journal.org")
+	       "* Item: %?\n  %i\n  from: %a"
+	       :empty-lines 1)
+	      ))        
+  )
+  
+#+END_SRC
+
+** org-noter 
+
+Annotation of PDF files in separate org-mode file
+
+Run  `M-x org-noter` on heading (in org file) or while viewing PDF
+
+Use `M-n` `M-p` to navigate when in org file, `n`, `p` to navigate when in pdf
+
+
+#+BEGIN_SRC emacs-lisp
+  (use-package org-noter
+    :ensure t)
+#+END_SRC
+
+** org-ref
+
+update to v3.0
+   
+add citation using `C-c ]`
+
+add item to bibliography:
+- use drag and drop of PDF file
+- `M-x crossref-add-bibtex-entry` to do search in CrossRef 
+
+
+#+BEGIN_SRC emacs-lisp
+  (use-package helm-bibtex
+    :ensure t
+    :config
+    (setq bibtex-completion-bibliography '( "~/Notes/References/Bibliography.bib" ) ;the major bibtex file
+	  bibtex-completion-library-path '("~/Notes/References/") ;the directory to store pdfs
+	  bibtex-completion-notes-path "~/Notes/References/" ;the note file for reference notes
+	  ))
+  
+  
+  (use-package org-ref
+		   :after org
+		   :ensure t
+		   :config
+		   (require 'org-ref-helm)
+		   (setq org-ref-insert-link-function 'org-ref-insert-link-hydra/body
+			 org-ref-insert-cite-function 'org-ref-cite-insert-helm
+			 org-ref-insert-label-function 'org-ref-insert-label-link
+			 org-ref-insert-ref-function 'org-ref-insert-ref-link
+			 org-ref-cite-onclick-function (lambda (_) (org-ref-citation-hydra/body)))
+		   :bind
+		   (:map org-mode-map
+			 ("C-c ]" . 'org-ref-insert-link)))
+  
+  
+#+END_SRC
+
+** TODO org-pdftools
+
+Does not seem to work properly
+   
+create hyperlink pdftools:file.pdf
+
+#+BEGIN_SRC emacs-lisp
+  (use-package org-pdftools
+    :ensure t
+    :hook (org-mode . org-pdftools-setup-link))
+
+#+END_SRC
+
+
+** ox-hugo
+
+   export org files as hugo markdown
+
+   #+BEGIN_SRC emacs-lisp
+(use-package ox-hugo
+  :ensure t            ;Auto-install the package from Melpa (optional)
+  :after ox)
+
+   #+END_SRC
+
+  
+** faces
+
+How emacs displays is determined by faces.
+To figure out what face is being used for an element, position cursor on element and do 'C-u C-x ='
+
+#+BEGIN_SRC emacs-lisp
+  (set-face-attribute 'org-meta-line nil :height 0.8 :slant 'normal
+		      :foreground "#C0C0C0")
+
+  (set-face-attribute 'org-block-begin-line nil :height 0.8 :slant 'normal
+		      :foreground "light grey")
+
+  (set-face-attribute 'org-block-end-line nil :height 0.8 :slant 'normal
+		      :foreground "light grey")
+
+
+
+  ;; use Doom theme config instead
+  ;;
+  ;; (setq org-src-block-faces '(("emacs-lisp" (:background "ivory"))
+  ;; 			    ("elisp" (:background "ivory"))
+  ;; 			    ("python" (:background "ivory"))
+  ;; 			    ("julia" (:background "ivory"))
+  ;; 			    ("jupyter-julia" (:background "ivory"))
+  ;; 			    ("jupyter-python" (:background "ivory"))
+  ;; 			    ("shell" (:background "ivory"))
+  ;; 			    ("sh" (:background "ivory"))
+  ;; 			    ("R" (:background "ivory"))
+  ;; 			    ))
+#+END_SRC
+
+** ox-hugo
+
+   Allows export of org-files as hugo markdown to generate static html pages
+ 
+#+BEGIN_SRC emacs-lisp
+  (use-package ox-hugo
+    :ensure t
+    :after ox)
+#+END_SRC
+
+
+
+
+** helm-org-rifle
+
+   Similar to org-occur, but shows heading and context as well, not
+   only line and file
+
+   #+BEGIN_SRC emacs-lisp
+
+     (use-package helm-org-rifle
+       :ensure t)
+   #+END_SRC
+
+   E.g. `helm-org-rifle-agenda-files` searches org agenda files
+   
+ 
+* org-roam
+
+  Notes with backlinks, Second Brain
+
+  "C-c n f" to create/find node
+  "C-c n i" to create link to node
+  "C-c n l" toggle backlink buffer
+
+  Use "C-M-i" for completion of node names at point
+
+  "C-c n c" to make headline into node
+  To make a heading into a node, you need to assign an ID to it
+  using "M-x org-id-get-create"
+  
+  To give alias to node, use "M-x org-roam-alias-add"
+
+  
+#+BEGIN_SRC emacs-lisp
+  (setq org-roam-v2-ack t)
+  
+  (use-package org-roam
+      :ensure t
+      :hook (org-load . org-roam-setup)
+      :custom
+      (org-roam-directory (file-truename "~/RoamFiles"))
+      (org-roam-completion-everywhere t) 
+      :bind
+      (("C-c n l" . org-roam-buffer-toggle)
+       ("C-c n f" . org-roam-node-find)
+       ("C-c n i" . org-roam-node-insert)
+       :map org-mode-map
+       ("C-M-i" . completion-at-point)
+       ("C-c n c" . org-id-get-create))
+      :config
+      (cl-defmethod org-roam-node-hierarchy ((node org-roam-node))
+	(let ((level (org-roam-node-level node)))
+	  (concat
+	   (when (> level 0) (concat (org-roam-node-file-title node) " > "))
+	   (when (> level 1) (concat (string-join (org-roam-node-olp node) " > ") " > "))
+	   (org-roam-node-title node))))
+  
+      (setq org-roam-node-display-template "${hierarchy:*} ${tags:20}")
+      (org-roam-bibtex-mode +1))
+#+END_SRC
+
+** org-roam-bibtex
+   
+   Connector between org-roam, bibtex-completion, and org-ref
+   
+#+BEGIN_SRC emacs-lisp
+   (use-package org-roam-bibtex
+     :ensure t
+     :after (org-roam)
+  ;;   :hook org-roam-mode
+     :config
+     (setq orb-roam-ref-format 'org-ref-v3)
+  ;;   (setq orb-preformat-keywords
+  ;;      '("citekey" "title" "url" "author-or-editor" "keywords" "file")
+  ;;      orb-process-file-keyword t
+  ;;      orb-attached-file-extensions '("pdf"))
+  ;;    (add-to-list 'org-roam-capture-templates
+  ;;       	    '("n" "bibliography reference + notes" plain
+  ;;       	      ""
+  ;;       	      :if-new
+  ;;       	      (file+head "/home/florian/Notes/References/${citekey}.org" "#+title: ${citekey}: ${title}\n")))
+  
+     (require 'org-ref))
+  
+#+END_SRC
+
+
+
+#+BEGIN_QUOTE
+%^{title}
+  :PROPERTIES:
+  :ROAM_KEY: %^{citekey}
+  :URL: %^{url}
+  :AUTHOR: %^{author-or-editor}
+  :NOTER_DOCUMENT: %^{file}  ; <== special file keyword: if more than one filename
+  :NOTER_PAGE:               ;     is available, the user will be prompted to choose
+  :END:
+
+
+    (add-to-list 'org-roam-capture-templates
+	       '("r" "bibliography reference" plain
+		 "
+		 %^{title}
+  :PROPERTIES:
+  :ROAM_KEY: %^{citekey}
+  :URL: %^{url}
+  :AUTHOR: %^{author-or-editor}
+  :END:"
+		 :if-new
+		 (file+head "References/${citekey}.org" "#+title: %^{citekey}: %^{title}\n")))
+#+END_QUOTE
+
+* LanguageServer [DISABLED]
+
+see, for example,  https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/index.html 
+
+
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package lsp-mode
+  ;;   :ensure t
+  ;;   :commands (lsp lsp-deferred)
+  ;;   :init
+  ;;   (setq lsp-keymap-prefix "C-c l")
+  ;;   :config
+  ;;   (lsp-enable-which-key-integration t))
+#+END_SRC
+
+* fz extensions
+
+** paste image from clipboard into org file
+
+TODO: ask user for filename, offer default
+   
+#+BEGIN_SRC emacs-lisp
+  (defvar fz/image-dir "Images")
+
+  (defun fz/ensure-directory (path)
+    "create directory if it does not exist and user agrees"
+    (when (and (not (file-exists-p path))
+	       (y-or-n-p (format "Directory %s does not exist. Create it?" path)))
+      (make-directory path :parents)))
+
+  (defun fz/paste-image-clipboard ()
+    "Paste screenshot from clipboard"
+    (interactive)
+    (fz/ensure-directory (file-name-as-directory fz/image-dir))
+    (let ((image-path (concat (file-name-as-directory fz/image-dir)
+			      (file-name-base (buffer-name))
+			      (format-time-string "_%Y_%m_%d__%H_%M_%S")
+			      ".png")))
+      (shell-command-to-string (format "xclip -selection clipboard -t image/png -o > %s" image-path))
+      (insert "[[file:" image-path "]]\n")
+      (org-display-inline-images)))
+
+#+END_SRC
+
+
+In order to use image resizing, e.g. `#+attr_org: :width 300`, one needs to set 
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-image-actual-width nil)
+#+END_SRC
+
+#+RESULTS:
